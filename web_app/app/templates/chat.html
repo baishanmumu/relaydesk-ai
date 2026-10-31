@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <title>RelayDesk AI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .chat-container {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .chat-area {
+            flex: 3;
+            display: flex;
+            flex-direction: column;
+            height: 80vh;
+        }
+        
+        .operation-log {
+            flex: 2;
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        .message-input {
+            display: flex;
+            gap: 10px;
+        }
+        
+        #user-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        #send-btn {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        #send-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .user-message {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            text-align: right;
+        }
+        
+        .ai-message {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .pending-action-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 50%;
+            max-width: 500px;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .approve-btn {
+            padding: 10px 20px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .reject-btn {
+            padding: 10px 20px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .log-entry {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            font-size: 12px;
+        }
+        
+        .log-entry:hover {
+            background: #f9f9f9;
+        }
+        
+        .log-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .log-content {
+            color: #666;
+            white-space: pre-wrap;
+        }
+        
+        .log-timestamp {
+            color: #999;
+            font-size: 10px;
+            float: right;
+        }
+        
+        .tool-call {
+            border-left: 3px solid #007bff;
+        }
+        
+        .ai-response {
+            border-left: 3px solid #28a745;
+        }
+        
+        .user-input {
+            border-left: 3px solid #ffc107;
+        }
+        
+        .system-message {
+            border-left: 3px solid #6c757d;
+        }
+        
+        .error {
+            border-left: 3px solid #dc3545;
+        }
+        
+        .tool-result {
+            border-left: 3px solid #17a2b8;
+        }
+        
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .clear-log-btn {
+            padding: 5px 10px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 10px;
+        }
+        
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #007bff;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        body {
+            max-width: 1240px;
+            padding: 36px 28px 48px;
+            color: #e8eef3;
+            background: #101b29;
+            font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+        }
+
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .brand-lockup { display: flex; align-items: center; gap: 14px; }
+        .brand-mark {
+            display: grid;
+            width: 44px;
+            height: 44px;
+            place-items: center;
+            border-radius: 14px;
+            color: #10231f;
+            background: #c8f078;
+            font-size: 21px;
+            font-weight: 800;
+        }
+        .app-header h1 { margin: 0; font-size: 24px; letter-spacing: -.5px; }
+        .app-header p { margin: 5px 0 0; color: #9fb0bf; font-size: 13px; }
+        .chat-container { align-items: stretch; gap: 18px; }
+        .chat-area { min-width: 0; height: min(78vh, 780px); }
+        .chat-messages {
+            padding: 22px;
+            border: 1px solid #dfe6e4;
+            border-radius: 16px;
+            background: #f7f8f5;
+            box-shadow: 0 18px 44px rgba(0,0,0,.15);
+        }
+        .user-message, .ai-message {
+            max-width: 88%;
+            padding: 13px 15px;
+            border-radius: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+        .user-message { margin-left: auto; color: #f7fbff; background: #287e73; }
+        .ai-message { color: #1a2a38; background: #e8eeea; }
+        .empty-state { margin: auto; color: #738590; text-align: center; line-height: 1.7; }
+        .message-input { padding: 10px; border: 1px solid #33485c; border-radius: 15px; background: #1b2b3d; }
+        #user-input { min-width: 0; padding: 12px 14px; border: 0; color: #f2f6f8; background: transparent; outline: none; }
+        #user-input::placeholder { color: #9fb0bf; }
+        #user-input:focus-visible { box-shadow: 0 0 0 2px #c8f078; border-radius: 8px; }
+        #send-btn, .new-chat-btn { padding: 11px 18px; border: 0; border-radius: 10px; color: #14231d; background: #c8f078; font-weight: 700; }
+        #send-btn:hover, .new-chat-btn:hover { background: #d8f59d; }
+        #send-btn:disabled { opacity: .55; }
+        .operation-log { flex: 1.25; max-height: min(78vh, 780px); padding: 18px; border: 1px solid #2e4357; border-radius: 16px; color: #e8eef3; background: #19293b; box-shadow: 0 18px 44px rgba(0,0,0,.15); }
+        .log-header { align-items: center; }
+        .log-header h3 { margin-top: 0; font-size: 15px; }
+        .log-entry { border-color: #30465a; color: #dfe8ee; }
+        .log-content { color: #aebdca; }
+        .pending-action-modal { background: rgba(5,12,20,.76); backdrop-filter: blur(8px); }
+        .modal-content { padding: 24px; border: 1px solid #dce5df; border-radius: 18px; box-shadow: 0 24px 80px rgba(0,0,0,.3); }
+        .approve-btn { background: #287e73; }
+        .reject-btn { background: #b65b52; }
+        .loading { color: #dce6ed; }
+
+        @media (max-width: 760px) {
+            body { padding: 22px 14px 32px; }
+            .app-header { align-items: flex-start; }
+            .app-header h1 { font-size: 20px; }
+            .brand-mark { flex: 0 0 40px; width: 40px; height: 40px; }
+            .new-chat-btn { padding: 10px 12px; font-size: 12px; }
+            .chat-container { display: flex; flex-direction: column; }
+            .chat-area { height: 66vh; min-height: 420px; }
+            .operation-log { max-height: 34vh; }
+            .user-message, .ai-message { max-width: 96%; }
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="brand-lockup">
+            <div class="brand-mark" aria-hidden="true">R</div>
+            <div>
+                <h1>RelayDesk AI</h1>
+                <p>多智能体客服工作台 · 把请求交给合适的专员</p>
+            </div>
+        </div>
+        <button class="new-chat-btn" id="new-chat-btn" type="button">新建对话</button>
+    </header>
+    
+    <div class="chat-container">
+        <div class="chat-area">
+            <div id="chat-messages" class="chat-messages" aria-live="polite" aria-relevant="additions text">
+                {% if not chat_history %}
+                <p class="empty-state">你好，我是 RelayDesk。请描述你的航班、住宿、订单或其他客服问题。</p>
+                {% endif %}
+                {% for message in chat_history %}
+                <div class="user-message">
+                    <strong>You:</strong> {{ message.user_message }}
+                </div>
+                <div class="ai-message">
+                    <strong>Assistant:</strong> {{ message.ai_response }}
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="loading" id="loading-indicator" role="status" aria-live="polite">
+                <div class="spinner"></div>
+                Processing your request...
+            </div>
+            
+            <div class="message-input">
+                <input type="text" id="user-input" maxlength="4000" aria-label="输入客服问题" placeholder="描述你需要处理的客服问题…" />
+                <button id="send-btn" type="button">发送</button>
+            </div>
+        </div>
+        
+        <div class="operation-log">
+            <div class="log-header">
+                <h3>工具与操作记录</h3>
+            </div>
+            <div id="operation-log-content" aria-live="polite"></div>
+        </div>
+    </div>
+    
+    <div id="pending-action-modal" class="pending-action-modal">
+        <div class="modal-content">
+            <h3>敏感操作需要确认</h3>
+            <div id="pending-action-details"></div>
+            <div class="modal-buttons">
+                <button class="approve-btn" onclick="approveAction()">确认继续</button>
+                <button class="reject-btn" onclick="rejectAction()">取消操作</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Get DOM elements
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const pendingActionModal = document.getElementById('pending-action-modal');
+        const pendingActionDetails = document.getElementById('pending-action-details');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const operationLogContent = document.getElementById('operation-log-content');
+        const newChatBtn = document.getElementById('new-chat-btn');
+        
+        // Function to add a message to the chat
+        function addMessage(sender, message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = sender === 'user' ? 'user-message' : 'ai-message';
+            const label = document.createElement('strong');
+            label.textContent = sender === 'user' ? '你：' : 'RelayDesk：';
+            messageDiv.append(label, document.createTextNode(` ${message}`));
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Function to send a message to the chat API
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+            
+            // Disable the input and show loading indicator
+            userInput.disabled = true;
+            sendBtn.disabled = true;
+            loadingIndicator.style.display = 'block';
+            
+            try {
+                addMessage('user', message);
+                userInput.value = '';
+                
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    addMessage('assistant', `Error: ${data.error}`);
+                } else {
+                    addMessage('assistant', data.response);
+                }
+            } catch (error) {
+                addMessage('assistant', 'An unexpected error occurred. Please try again later.');
+                console.error('Error:', error);
+            } finally {
+                // Re-enable the input and hide loading indicator
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                loadingIndicator.style.display = 'none';
+                userInput.focus();
+            }
+        }
+        
+        // Function to check for pending actions
+        async function checkPendingAction() {
+            try {
+                const response = await fetch('/pending-action');
+                const data = await response.json();
+                
+                if (data.pending_action) {
+                    // Display the pending action modal
+                    pendingActionDetails.replaceChildren();
+                    const heading = document.createElement('h4');
+                    heading.textContent = '待确认的操作';
+                    const list = document.createElement('ul');
+                    data.pending_action.tool_calls.forEach(toolCall => {
+                        const item = document.createElement('li');
+                        const name = document.createElement('strong');
+                        name.textContent = toolCall.name;
+                        item.append(name, document.createTextNode(`：${JSON.stringify(toolCall.args)}`));
+                        list.append(item);
+                    });
+                    pendingActionDetails.append(heading, list);
+                    pendingActionModal.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error checking pending action:', error);
+            }
+        }
+        
+        // Function to approve an action
+        async function approveAction() {
+            try {
+                const response = await fetch('/approve-action', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ decision: 'approve' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    addMessage('assistant', `Error: ${data.error}`);
+                } else {
+                    addMessage('assistant', data.response);
+                }
+                
+                // Hide the modal
+                pendingActionModal.style.display = 'none';
+            } catch (error) {
+                console.error('Error approving action:', error);
+                addMessage('assistant', 'An unexpected error occurred while processing your approval.');
+            }
+        }
+        
+        // Function to reject an action
+        async function rejectAction() {
+            try {
+                const response = await fetch('/reject-action', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ decision: 'reject' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    addMessage('assistant', `Error: ${data.error}`);
+                } else {
+                    addMessage('assistant', data.response);
+                }
+                
+                // Hide the modal
+                pendingActionModal.style.display = 'none';
+            } catch (error) {
+                console.error('Error rejecting action:', error);
+                addMessage('assistant', 'An unexpected error occurred while processing your rejection.');
+            }
+        }
+        
+        // Function to fetch and display operation log
+        async function fetchOperationLog() {
+            try {
+                const response = await fetch('/operation-log');
+                const data = await response.json();
+                
+                if (data.error) {
+                operationLogContent.textContent = `读取操作记录失败：${data.error}`;
+                } else {
+                    displayOperationLog(data.operation_log);
+                }
+            } catch (error) {
+                console.error('Error fetching operation log:', error);
+                operationLogContent.textContent = '读取操作记录失败。';
+            }
+        }
+        
+        // Function to display operation log
+        function displayOperationLog(logEntries) {
+            if (!logEntries || logEntries.length === 0) {
+                operationLogContent.textContent = '暂无操作记录。';
+                return;
+            }
+            operationLogContent.replaceChildren();
+            logEntries.forEach(entry => {
+                const timestamp = new Date(entry.timestamp).toLocaleTimeString();
+                const row = document.createElement('div');
+                row.className = `log-entry ${String(entry.type || '').replace(/[^a-z0-9_-]/gi, '')}`;
+                const title = document.createElement('div');
+                title.className = 'log-title';
+                title.textContent = entry.title || '操作';
+                const content = document.createElement('div');
+                content.className = 'log-content';
+                content.textContent = entry.content || '';
+                const time = document.createElement('div');
+                time.className = 'log-timestamp';
+                time.textContent = timestamp;
+                row.append(title, content, time);
+                operationLogContent.append(row);
+            });
+        }
+        
+        // Function to clear operation log
+        async function resetConversation() {
+            const confirmed = window.confirm('清除当前浏览器保存的对话和操作记录？');
+            if (!confirmed) return;
+            try {
+                const response = await fetch('/reset-session', { method: 'POST' });
+                if (!response.ok) throw new Error('reset failed');
+                chatMessages.replaceChildren();
+                operationLogContent.textContent = '暂无操作记录。';
+                pendingActionModal.style.display = 'none';
+                addMessage('assistant', '新对话已准备好。你可以描述要处理的客服问题。');
+            } catch (error) {
+                addMessage('assistant', '清除对话失败，请稍后重试。');
+            }
+        }
+        
+        // Event listeners
+        sendBtn.addEventListener('click', sendMessage);
+        newChatBtn.addEventListener('click', resetConversation);
+        
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        // Poll for pending actions every 5 seconds (reduced frequency)
+        let pendingActionRetryCount = 0;
+        const maxPendingActionRetries = 3;
+        
+        async function checkPendingActionWithRetry() {
+            try {
+                await checkPendingAction();
+                pendingActionRetryCount = 0; // Reset retry count on success
+            } catch (error) {
+                pendingActionRetryCount++;
+                console.error(`Error checking pending action (attempt ${pendingActionRetryCount}):`, error);
+                
+                if (pendingActionRetryCount >= maxPendingActionRetries) {
+                    console.error('Max retries reached for pending action check');
+                    pendingActionRetryCount = 0; // Reset retry count
+                }
+            }
+        }
+        
+        // Poll for operation log every 10 seconds (reduced frequency)
+        let operationLogRetryCount = 0;
+        const maxOperationLogRetries = 3;
+        
+        async function fetchOperationLogWithRetry() {
+            try {
+                await fetchOperationLog();
+                operationLogRetryCount = 0; // Reset retry count on success
+            } catch (error) {
+                operationLogRetryCount++;
+                console.error(`Error fetching operation log (attempt ${operationLogRetryCount}):`, error);
+                
+                if (operationLogRetryCount >= maxOperationLogRetries) {
+                    console.error('Max retries reached for operation log fetch');
+                    operationLogRetryCount = 0; // Reset retry count
+                }
+            }
+        }
+        
+        setInterval(checkPendingActionWithRetry, 5000);
+        setInterval(fetchOperationLogWithRetry, 10000);
+        
+        // Initial fetch of operation log
+        fetchOperationLog();
+        
+        // Focus on the input field when the page loads
+        userInput.focus();
+    </script>
+</body>
+</html>
